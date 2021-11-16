@@ -33,6 +33,8 @@ def parse(url, backend=None, **settings):
         return {"ENGINE": ENGINE_SCHEMES["sqlite"].backend, "NAME": ":memory:"}
 
     url = urlparse.urlparse(url)
+    if url.scheme not in ENGINE_SCHEMES:
+        raise ValueError(f"Unknown database scheme: {url.scheme}")
     engine = ENGINE_SCHEMES[url.scheme]
     options = {}
 

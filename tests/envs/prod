@@ -1,0 +1,6 @@
+HOSTNAME=prodhost
+USERNAME=produser
+API_KEY=gAAAAABhk9XGRtQKECKW4JtHf4eJUTZ7Swrz3d3YERNw_QeZrqFLNCwUG0N21d8Nk0jlyBeVCym-1r9UHRpl8C98mF7ehhGlfA==
+
+# The encrypted envdirs/prod/PASSWORD value takes precedence over this.
+PASSWORD=notused

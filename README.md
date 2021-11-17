@@ -1,13 +1,16 @@
 # cconf
 
-cconf is a library for reading configuration from various sources (such as environment
+`cconf` is a library for reading configuration from various sources (such as environment
 variables, environment files, and environment directories) and optionally encrypting
-sensitive configurations.
+sensitive configurations. Sensitive configuration values are encrypted using
+[Fernet](https://cryptography.io/en/latest/fernet/) tokens, which provide authenticated
+crypography and the ability to specify a maximum valid lifetime (`ttl`).
 
 
 ## Installation
 
 `pip install cconf`
+
 
 ## Usage
 
@@ -61,12 +64,16 @@ plaintext values allowed).
 
 ```python
 from cconf import config, Secret
+
 config.file("/path/to/.env", key_file="/path/to/secret.key")
-SECRET_KEY = config("SECRET_KEY", sensitive=True, cast=Secret)
+
+# This SECRET_KEY is only valid for 24 hours.
+SECRET_KEY = config("SECRET_KEY", sensitive=True, cast=Secret, ttl=86400)
 ```
 
-You may set a default value for a `sensitive` config value, but a warning will be
-emitted.
+Setting a `ttl` will ensure the encrypted value is no older than that number of seconds.
+Values older than `ttl` will emit a warning and return `undefined`. You may set a
+default value for a `sensitive` config value, but a warning will be emitted.
 
 To get started, you can use the `cconf` CLI tool to generate a new `Fernet` key, then
 use that key to encrypt some data:
@@ -87,6 +94,20 @@ This will encrypt the string `secretdata` using all encrypted sources in your co
 and output them along with the source they're encrypted for. You must add this data to
 your configuration files manually, `cconf` makes no attempt to write to these files for
 you.
+
+
+## Key and File Policies
+
+Any source that specifies a `key_file` may also specify a `key_policy` which will
+perform additional checks when opening the `key_file`. By default `key_policy` is set to
+`cconf.UserOnly`, which checks that the key file is owned by the current user, and has
+no permissions granted to group or other users (i.e. `600` mode).
+
+Similarly, `EnvFile` and `EnvDir` sources accept a `policy` argument (which defaults to
+`None`) that will perform policy checks when opening the environment files. You may set
+this to `cconf.UserOnly` or `cconf.UserOrGroup`, or write your own policy. A policy is
+simply a function that takes a single `path` argument and raises `cconf.PolicyError` if
+the file should not be opened.
 
 
 ## Checking Configuration
@@ -112,6 +133,36 @@ EnvDir(/Users/dcwatson/Projects/cconf/tests/envdirs/prod)
     DEBUG
         'false'
 ```
+
+## Warnings
+
+`cconf` will emit warnings (specifically `ConfigWarning`, a subclass of `UserWarning`)
+in certain cases:
+
+* A config value was marked as `sensitive`, but the value extracted from the
+  configuration source has either expired (if a `ttl` was specified), or is improperly
+  encrypted (wrong key, plaintext, etc.)
+* A config value was marked as `sensitive`, but was not found in any of the sources and
+  a default value is being used.
+* A config key was not found in any of the sources, and there is no default value
+  specified. In this case, `undefined` is returned and a warning is emitted.
+* A `key_file` or `keys` was specified for a configuration source, but no actual
+  `Fernet` keys were found (empty file, empty list, etc.)
+
+You may choose to silence these warnings, or promote them to exceptions using Python's
+`warnings` module:
+
+```python
+import warnings
+from cconf import ConfigWarning
+
+# Silence all ConfigWarnings.
+warnings.simplefilter("ignore", ConfigWarning)
+
+# Raise ConfigWarnings as exceptions.
+warnings.simplefilter("error", ConfigWarning)
+```
+
 
 ## Django Integration
 

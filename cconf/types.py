@@ -6,6 +6,12 @@ from . import dburl
 
 
 class Secret(str):
+    """
+    A `str` subclass whose `repr` does not show the underlying string. Useful for
+    sensitive strings like passwords that you do not want to appear in tracebacks and
+    such.
+    """
+
     def __repr__(self):
         class_name = self.__class__.__name__
         return f"{class_name}('**********')"
@@ -22,6 +28,13 @@ def CommaSeparatedStrings(value):
 
 
 class Duration(timedelta):
+    """
+    A `datetime.timedelta` subclass that can be constructed with a duration string of
+    the format `YyWwDdHhMmSs` where the capital letters are integers and the lowercase
+    letters are duration specifiers (year/week/day/hour/minute/second). Also adds a
+    `duration_string` method for converting back to this format.
+    """
+
     SPECS = {
         "y": 31536000,
         "w": 604800,

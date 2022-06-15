@@ -12,15 +12,16 @@ from .base import (
     undefined,
 )
 from .dburl import register as register_database
-from .types import CommaSeparatedStrings, DatabaseDict, Duration, Secret
+from .types import CacheDict, CommaSeparatedStrings, DatabaseDict, Duration, Secret
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 __version_info__ = tuple(int(num) for num in __version__.split("."))
 
 __all__ = [
     "config",
     "register_database",
     "undefined",
+    "CacheDict",
     "CommaSeparatedStrings",
     "Config",
     "ConfigError",

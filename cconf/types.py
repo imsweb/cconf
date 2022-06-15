@@ -2,7 +2,7 @@ import re
 import shlex
 from datetime import timedelta
 
-from . import dburl
+from . import cacheurl, dburl
 
 
 class Secret(str):
@@ -78,3 +78,18 @@ def DatabaseDict(value=None, **settings):
         return dburl.parse(value)
     else:
         raise ValueError("No database URL specified.")
+
+
+def CacheDict(value=None, **settings):
+    if settings:
+        assert value is None
+
+        def parse_wrapper(url):
+            return cacheurl.parse(url, **settings)
+
+        return parse_wrapper
+    elif value:
+        assert not settings
+        return cacheurl.parse(value)
+    else:
+        raise ValueError("No cache URL specified.")

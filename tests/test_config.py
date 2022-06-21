@@ -13,6 +13,7 @@ from cconf import (
     EnvFile,
     PolicyError,
     Secret,
+    SecretsDir,
     UserOnly,
     undefined,
 )
@@ -37,16 +38,22 @@ class ConfigTests(unittest.TestCase):
         past_time = int(time.time()) - 600  # 10 minutes ago
         old_value = key.encrypt_at_time(b"old-secret", past_time).decode()
         config = Config({"SECRET_KEY": old_value}, keys=[key])
-        with self.assertWarns(ConfigWarning):
-            value = config("SECRET_KEY", cast=Secret, sensitive=True, ttl=300)
-            self.assertEqual(value, undefined)
+        with self.assertRaises(KeyError):
+            with self.assertWarns(ConfigWarning):
+                config("SECRET_KEY", cast=Secret, sensitive=True, ttl=300)
+        with config.debug():
+            with self.assertWarns(ConfigWarning):
+                value = config("SECRET_KEY", cast=Secret, sensitive=True, ttl=300)
+                self.assertEqual(value, undefined)
 
     def test_envdir(self):
         with tempfile.TemporaryDirectory() as dirname:
             config = Config(EnvDir(dirname))
-            # with self.assertRaises(KeyError):
-            with self.assertWarns(ConfigWarning):
+            with self.assertRaises(KeyError):
                 config("SOME_KEY")
+            with config.debug():
+                with self.assertWarns(ConfigWarning):
+                    config("SOME_KEY")
             with open(os.path.join(dirname, "SOME_KEY"), "w") as f:
                 f.write("some value")
             self.assertEqual(config("SOME_KEY"), "some value")
@@ -55,16 +62,20 @@ class ConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as dirname:
             envfile = os.path.join(dirname, "env")
             config = Config(EnvFile(envfile))
-            # with self.assertRaises(KeyError):
-            with self.assertWarns(ConfigWarning):
+            with self.assertRaises(KeyError):
                 config("SOME_KEY")
+            with config.debug():
+                with self.assertWarns(ConfigWarning):
+                    config("SOME_KEY")
             with open(envfile, "w") as f:
                 f.write("# environment below\n")
                 f.write("SOME_KEY=some value\n")
             self.assertEqual(config("SOME_KEY"), "some value")
-            # with self.assertRaises(KeyError):
-            with self.assertWarns(ConfigWarning):
+            with self.assertRaises(KeyError):
                 config("OTHER_KEY")
+            with config.debug():
+                with self.assertWarns(ConfigWarning):
+                    config("OTHER_KEY")
 
     def test_multi_source(self):
         key = Fernet.generate_key()
@@ -106,3 +117,22 @@ class ConfigTests(unittest.TestCase):
                 config("SECRET_KEY", sensitive=True)
             os.chmod(env_file, stat.S_IRUSR | stat.S_IWUSR)
             self.assertEqual(config("SECRET_KEY", sensitive=True), "secret")
+
+    def test_debug(self):
+        config = Config({"SECRET_KEY": "not-very-secret"})
+        with config.debug():
+            with self.assertWarns(ConfigWarning):
+                config("PASSWORD", cast=Secret)
+        self.assertFalse(config._debug)
+
+    def test_secrets(self):
+        with tempfile.TemporaryDirectory() as dirname:
+            config = Config(SecretsDir(dirname))
+            with self.assertRaises(KeyError):
+                config("SOME_KEY", sensitive=True)
+            with config.debug():
+                with self.assertWarns(ConfigWarning):
+                    config("SOME_KEY", sensitive=True)
+            with open(os.path.join(dirname, "SOME_KEY"), "w") as f:
+                f.write("supersecret\n")
+            self.assertEqual(config("SOME_KEY", sensitive=True), "supersecret")

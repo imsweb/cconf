@@ -1,3 +1,4 @@
+import collections
 import datetime
 import os
 import stat
@@ -15,9 +16,14 @@ BOOLEAN_STRINGS = {
     "0": False,
 }
 
+ConfigValue = collections.namedtuple(
+    "ConfigValue", ["raw", "value", "source", "default", "sensitive", "ttl"]
+)
+
 
 class undefined:
-    pass
+    def __bool__(self):
+        return False
 
 
 class ConfigError(Exception):
@@ -95,6 +101,12 @@ class BaseSource:
     def __getitem__(self):
         raise NotImplementedError()
 
+    def encrypt(self, value):
+        raise NotImplementedError()
+
+    def decrypt(self, value, ttl=None):
+        raise NotImplementedError()
+
 
 class Source(BaseSource):
     def __init__(self, environ=None, key_file=None, keys=None, key_policy=UserOnly):
@@ -105,7 +117,7 @@ class Source(BaseSource):
         if keys is not None:
             self._keys = [k if isinstance(k, Fernet) else Fernet(k) for k in keys]
         self._key_policy = key_policy
-        self.encrypted = bool(self._key_file or self._keys)
+        self.encrypted = self.__class__.encrypted or bool(self._key_file or self._keys)
 
     def __getitem__(self, key):
         return self._environ[key]
@@ -182,11 +194,36 @@ class EnvDir(Source):
             raise KeyError(key)
 
 
+class SecretsDir(EnvDir):
+    """
+    An EnvDir that allows for storage of sensitive keys even if they are not encrypted.
+    For use with mounted Kubernetes secrets.
+    """
+
+    encrypted = True
+
+    def encrypt(self, value):
+        return value
+
+    def decrypt(self, value, ttl=None):
+        return value
+
+
 class Config:
     def __init__(self, *sources, **kwargs):
+        self._debug = False
+        self._previous_debug = False
         self.setup(*sources, **kwargs)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_details):
+        self._debug = self._previous_debug
+
     def setup(self, *sources, **kwargs):
+        self._debug = kwargs.pop("debug", self._debug)
+        self._previous_debug = self._debug
         self.reset()
         for source in sources:
             if isinstance(source, BaseSource):
@@ -209,6 +246,11 @@ class Config:
         """
         self._sources = []
         self._defined = {}
+        return self
+
+    def debug(self, value=True):
+        self._previous_debug = self._debug
+        self._debug = value
         return self
 
     def source(self, source):
@@ -243,24 +285,26 @@ class Config:
         """
         Returns a dictionary of all known config names mapped to their cast values.
         """
-        return {k: v[1] for k, v in self._defined.items()}
+        return {k: v.value for k, v in self._defined.items()}
 
     def __call__(self, key, default=undefined, cast=None, sensitive=False, ttl=None):
-        checked = []
+        sources_checked = []
         for source in self._sources:
             if sensitive and not source.encrypted:
                 # Don't check unencrypted sources for sensitive configs.
                 continue
-            checked.append(str(source))
+            sources_checked.append(str(source))
             try:
-                value = source[key]
+                raw = source[key]
                 if sensitive:
                     if isinstance(ttl, datetime.timedelta):
                         ttl = int(ttl.total_seconds())
-                    value = source.decrypt(value, ttl=ttl)
-                python_value = self._perform_cast(key, value, cast)
-                self._defined[key] = (value, python_value, source)
-                return python_value
+                    raw = source.decrypt(raw, ttl=ttl)
+                value = self._perform_cast(raw, cast, key=key)
+                self._defined[key] = ConfigValue(
+                    raw, value, source, default, sensitive, ttl
+                )
+                return value
             except KeyError:
                 # Config name was not found in this source, move along.
                 continue
@@ -278,25 +322,29 @@ class Config:
                 )
                 continue
         if default is not undefined:
-            python_value = self._perform_cast(key, default, cast)
-            self._defined[key] = (default, python_value, None)
-            if sensitive:
+            value = self._perform_cast(default, cast, key=key)
+            self._defined[key] = ConfigValue(
+                default, value, None, default, sensitive, ttl
+            )
+            if sensitive and not self.debug:
                 warnings.warn(
                     f"`{key}` is marked sensitive but using a default value.",
                     ConfigWarning,
                     stacklevel=2,
                 )
-            return python_value
-        sources_checked = ", ".join(checked)
-        warnings.warn(
-            f"`{key}` not found in any of: {sources_checked}",
-            ConfigWarning,
-            stacklevel=2,
-        )
-        # raise KeyError(f"`{key}` not found in any of: {sources_checked}")
+            return value
+        checked = "\n  ".join(sources_checked)
+        if self._debug:
+            warnings.warn(
+                f"`{key}` has no default and was not found in any of:\n  {checked}",
+                ConfigWarning,
+                stacklevel=2,
+            )
+        else:
+            raise KeyError(f"`{key}` not found in any of:\n  {checked}")
         return default
 
-    def _perform_cast(self, key, value, cast=None):
+    def _perform_cast(self, value, cast, key=""):
         if cast is None or value is None:
             return value
         elif cast is bool and isinstance(value, str):

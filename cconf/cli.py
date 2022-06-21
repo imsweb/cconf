@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import json
 import sys
 
 from cryptography.fernet import Fernet
@@ -35,13 +36,16 @@ def setup_parser(parser):
     encrypt = subs.add_parser("encrypt")
     encrypt.add_argument("--keyfile", default=None)
     encrypt.add_argument("value", nargs=1)
+    k8s = subs.add_parser("k8s")
+    k8s.add_argument("-n", "--namespace", default=None)
+    k8s.add_argument("name", nargs="?", default="cconf")
 
 
 def check(config, **options):
     source_vars = {}
-    for key, (raw, value, source) in config._defined.items():
-        source_name = "(Default)" if source is None else str(source)
-        source_vars.setdefault(source_name, []).append((key, raw))
+    for key, configval in config._defined.items():
+        source_name = "(Default)" if configval.source is None else str(configval.source)
+        source_vars.setdefault(source_name, []).append((key, configval.raw))
     for source, items in source_vars.items():
         log(f"{source}")
         for key, value in items:
@@ -65,6 +69,47 @@ def encrypt(config, **options):
                 log("    {}", source.encrypt(options["value"][0]))
 
 
+def k8s_json(config, **options):
+    data = {}
+    secrets = {}
+    for key in sorted(config._defined):
+        configval = config._defined[key]
+        stringval = "" if configval.raw is None else str(configval.raw)
+        if configval.sensitive:
+            secrets[key] = stringval
+        else:
+            data[key] = stringval
+    metadata = {"name": options["name"]}
+    if options["namespace"]:
+        metadata["namespace"] = options["namespace"]
+    items = []
+    if data:
+        items.append(
+            {
+                "apiVersion": "v1",
+                "kind": "ConfigMap",
+                "metadata": metadata,
+                "data": data,
+            }
+        )
+    if secrets:
+        items.append(
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": metadata,
+                "type": "Opaque",
+                "stringData": secrets,
+            }
+        )
+    objects = {
+        "apiVersion": "v1",
+        "kind": "List",
+        "items": items,
+    }
+    log(json.dumps(objects, indent=4, default=lambda obj: ""))
+
+
 def execute(**options):
     try:
         config_module = importlib.import_module(options["config_module"])
@@ -80,6 +125,8 @@ def execute(**options):
         genkey(config, **options)
     elif action == "encrypt":
         encrypt(config, **options)
+    elif action == "k8s":
+        k8s_json(config, **options)
 
 
 def main(*args):

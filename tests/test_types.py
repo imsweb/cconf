@@ -19,13 +19,15 @@ class CastingTests(unittest.TestCase):
         self.assertEqual(d + Duration("2w"), d + datetime.timedelta(days=14))
 
     def test_dburl(self):
-        config = Config({"DATABASE_URL": "postgres://user:pass@host:5555/db?timeout=0"})
+        config = Config(
+            {"DATABASE_URL": "postgres://user:pass%23word!@host:5555/db?timeout=0"}
+        )
         d = config("DATABASE_URL", cast=DatabaseDict)
         expected = {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": "db",
             "USER": "user",
-            "PASSWORD": "pass",
+            "PASSWORD": "pass#word!",
             "HOST": "host",
             "PORT": 5555,
             "OPTIONS": {"timeout": "0"},

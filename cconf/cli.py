@@ -36,8 +36,11 @@ def setup_parser(parser):
     encrypt = subs.add_parser("encrypt")
     encrypt.add_argument("--keyfile", default=None)
     encrypt.add_argument("value", nargs=1)
+    dump = subs.add_parser("dump")
+    dump.add_argument("-i", "--interactive", action="store_true")
     k8s = subs.add_parser("k8s")
     k8s.add_argument("-n", "--namespace", default=None)
+    k8s.add_argument("-y", "--yaml", action="store_true")
     k8s.add_argument("name", nargs="?", default="cconf")
 
 
@@ -69,7 +72,30 @@ def encrypt(config, **options):
                 log("    {}", source.encrypt(options["value"][0]))
 
 
-def k8s_json(config, **options):
+def dump(config, **options):
+    data = {}
+    file = sys.stdout
+    should_close = False
+    if options["interactive"]:
+        filename = input("Write to file [-]: ")
+        if filename.strip() not in ("", "-"):
+            file = open(filename, "w")
+            should_close = True
+    for key in sorted(config._defined):
+        configval = config._defined[key]
+        stringval = "" if configval.raw is None else str(configval.raw)
+        if options["interactive"]:
+            value = input(f"{key} [{stringval}]: ")
+            data[key] = value.strip() or stringval
+        else:
+            data[key] = stringval
+    for key, stringval in data.items():
+        log("{}={}", key, stringval, file=file)
+    if should_close:
+        file.close()
+
+
+def k8s(config, **options):
     data = {}
     secrets = {}
     for key in sorted(config._defined):
@@ -102,12 +128,19 @@ def k8s_json(config, **options):
                 "stringData": secrets,
             }
         )
-    objects = {
-        "apiVersion": "v1",
-        "kind": "List",
-        "items": items,
-    }
-    log(json.dumps(objects, indent=4, default=lambda obj: ""))
+    if options["yaml"]:
+        import yaml
+
+        log(yaml.dump_all(items, sort_keys=False))
+    elif len(items) == 1:
+        log(json.dumps(items[0], indent=4, default=lambda obj: ""))
+    else:
+        objects = {
+            "apiVersion": "v1",
+            "kind": "List",
+            "items": items,
+        }
+        log(json.dumps(objects, indent=4, default=lambda obj: ""))
 
 
 def execute(**options):
@@ -125,8 +158,10 @@ def execute(**options):
         genkey(config, **options)
     elif action == "encrypt":
         encrypt(config, **options)
+    elif action == "dump":
+        dump(config, **options)
     elif action == "k8s":
-        k8s_json(config, **options)
+        k8s(config, **options)
 
 
 def main(*args):

@@ -86,9 +86,8 @@ class ConfigTests(unittest.TestCase):
                 f.write(key)
             with open(os.path.join(dirname, "DATABASE_URL"), "w") as f:
                 f.write(encrypted)
-            config = Config(
-                EnvDir(dirname, key_file=key_file, key_policy=None), {"DEBUG": "true"}
-            )
+            os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)
+            config = Config(EnvDir(dirname, keys=key_file), {"DEBUG": "true"})
             self.assertTrue(config("DEBUG", cast=bool))
             self.assertEqual(
                 config("DATABASE_URL", sensitive=True), "postgres://localhost"
@@ -105,14 +104,14 @@ class ConfigTests(unittest.TestCase):
             with open(env_file, "w") as f:
                 f.write(f"SECRET_KEY={encrypted}")
             # Check that the default UserOnly key_policy is working.
-            config = Config(EnvFile(env_file, key_file=key_file))
+            config = Config(EnvFile(env_file, keys=key_file))
             with self.assertRaises(PolicyError):
                 config("SECRET_KEY", sensitive=True)
             # Set the key to only readable/writable by the user and try again.
             os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)
             self.assertEqual(config("SECRET_KEY", sensitive=True), "secret")
             # Now check the EnvFile policy.
-            config = Config(EnvFile(env_file, policy=UserOnly, key_file=key_file))
+            config = Config(EnvFile(env_file, policy=UserOnly, keys=key_file))
             with self.assertRaises(PolicyError):
                 config("SECRET_KEY", sensitive=True)
             os.chmod(env_file, stat.S_IRUSR | stat.S_IWUSR)

@@ -11,6 +11,11 @@ crypography and the ability to specify a maximum valid lifetime (`ttl`).
 
 `pip install cconf`
 
+To use `Fernet` keys for encrypting sensitive settings, `cconf` requires the
+[cryptography](https://cryptography.io/) module, which can be installed as an extra:
+
+`pip install cconf[fernet]`
+
 
 ## Usage
 
@@ -42,30 +47,30 @@ from cconf import config
 config.setup("/path/to/envdir", "/path/to/.env")
 ```
 
-You can also specify sources that have either a `key_file` (a file with `Fernet` keys,
-one per line), or `keys` (a list of `Fernet` keys or strings/bytes that will be
-converted to `Fernet` keys):
+You can also specify sources that have `keys`, which can be the path to a file with
+`Fernet` keys, one per line, or a list of `str|bytes` keys that will be converted to
+`Fernet` keys:
 
 ```python
 from cconf import config, EnvDir, EnvFile, HostEnv
 
 config.setup(
-    EnvDir("/path/to/envdir", key_file="/path/to/envdir.keys"),
-    EnvFile("/path/to/.env", key_file="/path/to/env.keys"),
+    EnvDir("/path/to/envdir", keys="/path/to/envdir.keys"),
+    EnvFile("/path/to/.env", keys="/path/to/env.keys"),
     HostEnv(keys=["WQ6g4VBia1fNCuVCrsX5VvGUWYlHssUJLshONLsivhc="]),
 )
 ```
 
 ## Encrypting Sensitive Data
 
-Any configuration value can be marked as `sensitive`, meaning it will only be read from
-sources that have encryption keys, and will always be decrypted using those keys (so no
-plaintext values allowed).
+Any configuration value can be marked as `sensitive`, meaning it must be encrypted (or
+base64-encoded if not using `Fernet` keys) and will never be read from a plaintext
+source.
 
 ```python
 from cconf import config, Secret
 
-config.file("/path/to/.env", key_file="/path/to/secret.key")
+config.file("/path/to/.env", keys="/path/to/secret.key")
 
 # This SECRET_KEY is only valid for 24 hours.
 SECRET_KEY = config("SECRET_KEY", sensitive=True, cast=Secret, ttl=86400)
@@ -98,10 +103,10 @@ you.
 
 ## Key and File Policies
 
-Any source that specifies a `key_file` may also specify a `key_policy` which will
-perform additional checks when opening the `key_file`. By default `key_policy` is set to
-`cconf.UserOnly`, which checks that the key file is owned by the current user, and has
-no permissions granted to group or other users (i.e. `600` mode).
+A source may specify a key file policy (`keys=cconf.KeyFile(name, policy=...)`) which
+performs additional checks when opening the key file. By default `KeyFile.policy` is
+set to `cconf.UserOnly`, which checks that the key file is owned by the current user,
+and has no permissions granted to group or other users (i.e. `600` mode).
 
 Similarly, `EnvFile` and `EnvDir` sources accept a `policy` argument (which defaults to
 `None`) that will perform policy checks when opening the environment files. You may set
@@ -146,8 +151,6 @@ in certain cases:
   a default value is being used.
 * A config key was not found in any of the sources, and there is no default value
   specified. In this case, `undefined` is returned and a warning is emitted.
-* A `key_file` or `keys` was specified for a configuration source, but no actual
-  `Fernet` keys were found (empty file, empty list, etc.)
 
 You may choose to silence these warnings, or promote them to exceptions using Python's
 `warnings` module:

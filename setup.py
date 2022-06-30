@@ -23,7 +23,9 @@ setup(
     zip_safe=False,
     include_package_data=True,
     platforms="any",
-    install_requires=["cryptography"],
+    extras_require={
+        "fernet": ["cryptography"],
+    },
     entry_points={
         "console_scripts": ["cconf=cconf.cli:main"],
     },

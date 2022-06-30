@@ -2,7 +2,7 @@ import importlib
 import os
 from pathlib import Path
 
-from cconf import config
+from cconf import KeyFile, config
 
 # This should not actually be used.
 os.environ.setdefault("USERNAME", "root")
@@ -13,8 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 config.setup(
     BASE_DIR / "envdirs" / "prod",
     BASE_DIR / "envs" / "prod",
-    key_file=BASE_DIR / "keys" / "prod",
-    key_policy=None,
+    keys=KeyFile(BASE_DIR / "keys" / "prod", policy=None),
 )
 
 # Normally this would just be "from .common import *" but we need to reload since

@@ -3,7 +3,7 @@ import importlib
 import json
 import sys
 
-from cryptography.fernet import Fernet
+from .ciphers import KeyFile
 
 
 def log(msg, *args, file=sys.stdout):
@@ -46,30 +46,31 @@ def setup_parser(parser):
 
 def check(config, **options):
     source_vars = {}
-    for key, configval in config._defined.items():
+    for key in sorted(config._defined):
+        configval = config._defined[key]
         source_name = "(Default)" if configval.source is None else str(configval.source)
         source_vars.setdefault(source_name, []).append((key, configval.raw))
-    for source, items in source_vars.items():
+    for source in sorted(source_vars):
         log(f"{source}")
-        for key, value in items:
+        for key, value in source_vars[source]:
             log(f"    {key}\n        {repr(value)}")
 
 
 def genkey(config, **options):
+    from cryptography.fernet import Fernet
+
     log(Fernet.generate_key().decode())
 
 
 def encrypt(config, **options):
     keyfile = options.get("keyfile")
     if keyfile:
-        with open(keyfile) as f:
-            key = Fernet(f.read())
-            log(key.encrypt(options["value"][0].encode()).decode())
+        cipher = KeyFile(keyfile, policy=None)
+        log(cipher.encrypt(options["value"][0]))
     else:
         for source in config._sources:
-            if source.encrypted:
-                log(source)
-                log("    {}", source.encrypt(options["value"][0]))
+            log(source)
+            log("    {}", source.encrypt(options["value"][0]))
 
 
 def dump(config, **options):

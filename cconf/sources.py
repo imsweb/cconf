@@ -1,6 +1,7 @@
 import os
 import pathlib
 from typing import Optional, TextIO
+from warnings import warn
 
 from .ciphers import Base64, Cipher, Identity, KeyFile, Keys
 from .exceptions import ConfigError
@@ -43,9 +44,16 @@ class BaseSource:
 class Source(BaseSource):
     default_cipher = Base64
 
-    def __init__(self, environ=None, keys=None):
+    def __init__(self, environ=None, keys=None, key_file=None):
         self._environ = environ or {}
-        if keys is None:
+        if key_file is not None:
+            warn(
+                "The `key_file` argument is deprecated; use `keys` instead.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            self._cipher = KeyFile(key_file)
+        elif keys is None:
             self._cipher = self.default_cipher()
         elif isinstance(keys, Cipher):
             self._cipher = keys

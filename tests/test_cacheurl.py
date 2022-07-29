@@ -4,6 +4,16 @@ from cconf import CacheDict, Config
 
 
 class CacheURLTests(unittest.TestCase):
+    def test_default_cache(self):
+        config = Config()
+        expected = {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
+        c = config("CACHE_URL", "dummy://", cast=CacheDict)
+        self.assertEqual(c, expected)
+        c = config("CACHE_URL", expected, cast=CacheDict)
+        self.assertEqual(c, expected)
+
     def test_dummy(self):
         config = Config({"CACHE_URL": "dummy://"})
         c = config("CACHE_URL", cast=CacheDict)
@@ -25,7 +35,7 @@ class CacheURLTests(unittest.TestCase):
 
     def test_redis_cache(self):
         config = Config(
-            {"CACHE_URL": "redis://localhost:6379/?db=1&timeout=30&version=2"}
+            {"CACHE_URL": "redis://localhost:6379?db=1&timeout=30&version=2"}
         )
         c = config("CACHE_URL", cast=CacheDict)
         expected = {
@@ -34,6 +44,17 @@ class CacheURLTests(unittest.TestCase):
             "TIMEOUT": 30,
             "VERSION": 2,
             "OPTIONS": {"db": "1"},
+        }
+        self.assertEqual(c, expected)
+
+    def test_redis_cache_pathdb(self):
+        config = Config({"CACHE_URL": "redis://localhost:6379/5?timeout=30"})
+        c = config("CACHE_URL", cast=CacheDict)
+        expected = {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://localhost:6379",
+            "TIMEOUT": 30,
+            "OPTIONS": {"db": "5"},
         }
         self.assertEqual(c, expected)
 

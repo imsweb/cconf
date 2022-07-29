@@ -55,10 +55,16 @@ def null_location(url, options):
 
 @register("django.core.cache.backends.redis.RedisCache", "redis")
 def redis_location(url, options):
+    path = url.path.lstrip("/")
+    if path.isdigit() and "db" not in options:
+        options["db"] = path
     return "{}://{}".format(url.scheme, url.netloc)
 
 
 def parse(url, backend=None, **settings):
+    if isinstance(url, dict):
+        return {**url, **settings}
+
     url = urlparse.urlparse(url)
     if url.scheme not in CACHE_SCHEMES:
         raise ValueError(f"Unknown cache scheme: {url.scheme}")

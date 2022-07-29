@@ -47,6 +47,10 @@ class Duration(timedelta):
     SPLITTER = re.compile("([{}])".format("".join(SPECS.keys())))
 
     def __new__(cls, value):
+        if isinstance(value, timedelta):
+            return timedelta.__new__(cls, seconds=value.total_seconds())
+        if value.isdigit():
+            return timedelta.__new__(cls, seconds=int(value))
         parts = Duration.SPLITTER.split(value.lower().strip())
         seconds = 0
         for pair in zip(parts[::2], parts[1::2]):

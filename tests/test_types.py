@@ -17,6 +17,8 @@ class CastingTests(unittest.TestCase):
         self.assertEqual(d.duration_string(), "1m47s")
         d = datetime.date.today()
         self.assertEqual(d + Duration("2w"), d + datetime.timedelta(days=14))
+        self.assertEqual(Duration("2w"), Duration("1209600"))
+        self.assertEqual(Duration(Duration("2w")), Duration("2w"))
 
     def test_dburl(self):
         config = Config(
@@ -35,14 +37,19 @@ class CastingTests(unittest.TestCase):
         self.assertEqual(d, expected)
         d = config("DATABASE_URL", cast=DatabaseDict(CONN_MAX_AGE=600))
         self.assertEqual(d, {**expected, "CONN_MAX_AGE": 600})
-        d = config("SQLITE_DATABASE", cast=DatabaseDict, default="sqlite:///")
-        self.assertEqual(
-            d,
-            {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": ":memory:",
-            },
-        )
+
+    def test_dburl_default(self):
+        config = Config()
+        expected = {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+        d = config("DATABASE_URL", "sqlite:///", cast=DatabaseDict)
+        self.assertEqual(d, expected)
+        d = config("DATABASE_URL", expected, cast=DatabaseDict)
+        self.assertEqual(d, expected)
+        d = config("DATABASE_URL", expected, cast=DatabaseDict(ATOMIC_REQUESTS=True))
+        self.assertEqual(d, {**expected, "ATOMIC_REQUESTS": True})
 
     def test_string_list(self):
         config = Config({"ALLOWED_HOSTS": "localhost, example.com"})

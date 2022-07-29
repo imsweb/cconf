@@ -29,6 +29,9 @@ register("django.db.backends.sqlite3", "sqlite")
 
 
 def parse(url, backend=None, **settings):
+    if isinstance(url, dict):
+        return {**url, **settings}
+
     if url == "sqlite://:memory:":
         return {"ENGINE": ENGINE_SCHEMES["sqlite"].backend, "NAME": ":memory:"}
 

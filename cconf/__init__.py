@@ -8,7 +8,7 @@ from .policy import PolicyError, UserOnly, UserOrGroup
 from .sources import EnvDir, EnvFile, HostEnv, SecretsDir
 from .types import CacheDict, CommaSeparatedStrings, DatabaseDict, Duration, Secret
 
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 __version_info__ = tuple(
     int(num) if num.isdigit() else num
     for num in re.findall(r"([a-z]*\d+)", __version__)

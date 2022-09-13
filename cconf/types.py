@@ -1,6 +1,7 @@
 import re
 import shlex
 from datetime import timedelta
+from warnings import warn
 
 from . import cacheurl, dburl
 
@@ -17,14 +18,21 @@ class Secret(str):
         return f"{class_name}('**********')"
 
 
-def CommaSeparatedStrings(value):
-    if isinstance(value, str):
-        splitter = shlex.shlex(value, posix=True)
-        splitter.whitespace = ","
-        splitter.whitespace_split = True
-        return [item.strip() for item in splitter]
-    else:
-        return list(value)
+def CommaSeparated(python_type):
+    def _parser(value):
+        if isinstance(value, str):
+            splitter = shlex.shlex(value, posix=True)
+            splitter.whitespace = ","
+            splitter.whitespace_split = True
+            return [python_type(item.strip()) for item in splitter]
+        else:
+            return list(value)
+
+    return _parser
+
+
+CommaSeparatedStrings = CommaSeparated(str)
+CommaSeparatedInts = CommaSeparated(int)
 
 
 class Duration(timedelta):
@@ -55,6 +63,12 @@ class Duration(timedelta):
         seconds = 0
         for pair in zip(parts[::2], parts[1::2]):
             if pair:
+                if pair[1] == "y":
+                    warn(
+                        "Using `y` as a Duration format is deprecated; use `w` or `d`.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 seconds += int(pair[0]) * Duration.SPECS[pair[1]]
         return timedelta.__new__(cls, seconds=seconds)
 
@@ -62,6 +76,9 @@ class Duration(timedelta):
         seconds = self.total_seconds()
         duration = []
         for fmt, sec in Duration.SPECS.items():
+            if fmt == "y":
+                # Years as a format specifier is on its way out.
+                continue
             num = int(seconds // sec)
             if num > 0:
                 duration.append("{}{}".format(num, fmt))

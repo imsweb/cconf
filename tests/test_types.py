@@ -1,7 +1,15 @@
 import datetime
+import decimal
 import unittest
 
-from cconf import CommaSeparatedStrings, Config, DatabaseDict, Duration
+from cconf import (
+    CommaSeparated,
+    CommaSeparatedInts,
+    CommaSeparatedStrings,
+    Config,
+    DatabaseDict,
+    Duration,
+)
 
 
 class CastingTests(unittest.TestCase):
@@ -19,6 +27,10 @@ class CastingTests(unittest.TestCase):
         self.assertEqual(d + Duration("2w"), d + datetime.timedelta(days=14))
         self.assertEqual(Duration("2w"), Duration("1209600"))
         self.assertEqual(Duration(Duration("2w")), Duration("2w"))
+        with self.assertWarns(DeprecationWarning):
+            d = Duration("1y2d")
+            self.assertEqual(d, Duration("367d"))
+            self.assertEqual(d.duration_string(), "52w3d")
 
     def test_dburl(self):
         config = Config(
@@ -51,7 +63,23 @@ class CastingTests(unittest.TestCase):
         d = config("DATABASE_URL", expected, cast=DatabaseDict(ATOMIC_REQUESTS=True))
         self.assertEqual(d, {**expected, "ATOMIC_REQUESTS": True})
 
-    def test_string_list(self):
-        config = Config({"ALLOWED_HOSTS": "localhost, example.com"})
+    def test_comma_separated_lists(self):
+        config = Config(
+            {
+                "ALLOWED_HOSTS": "localhost, example.com",
+                "PRIME_NUMBERS": "2 , 3 , 5 , 7 , 11",
+                "DECIMALS": "3.14, 2.72",
+            }
+        )
         hosts = config("ALLOWED_HOSTS", cast=CommaSeparatedStrings)
         self.assertEqual(hosts, ["localhost", "example.com"])
+        primes = config("PRIME_NUMBERS", cast=CommaSeparatedInts)
+        self.assertEqual(primes, [2, 3, 5, 7, 11])
+        decimals = config("DECIMALS", cast=CommaSeparated(decimal.Decimal))
+        self.assertEqual(
+            decimals,
+            [
+                decimal.Decimal("3.14"),
+                decimal.Decimal("2.72"),
+            ],
+        )

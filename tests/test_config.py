@@ -129,6 +129,8 @@ class ConfigTests(unittest.TestCase):
             config = Config(SecretsDir(dirname))
             with self.assertRaises(KeyError):
                 config("SOME_KEY", sensitive=True)
+            with self.assertWarns(ConfigWarning):
+                config("SOME_KEY", "default", sensitive=True)
             with config.debug():
                 with self.assertWarns(ConfigWarning):
                     config("SOME_KEY", sensitive=True)

@@ -16,7 +16,7 @@ from .types import (
     Secret,
 )
 
-__version__ = "0.9.5"
+__version__ = "0.9.6"
 __version_info__ = tuple(
     int(num) if num.isdigit() else num
     for num in re.findall(r"([a-z]*\d+)", __version__)

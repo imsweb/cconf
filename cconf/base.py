@@ -141,7 +141,7 @@ class Config:
             self._defined[key] = ConfigValue(
                 default, value, None, default, sensitive, ttl
             )
-            if sensitive and not self.debug:
+            if sensitive and not self._debug:
                 warnings.warn(
                     f"`{key}` is marked sensitive but using a default value.",
                     ConfigWarning,

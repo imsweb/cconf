@@ -31,7 +31,7 @@ class BaseSource:
     def __str__(self):
         return self.__class__.__name__
 
-    def __getitem__(self):
+    def __getitem__(self, key):
         raise NotImplementedError()
 
     def encrypt(self, value: str):

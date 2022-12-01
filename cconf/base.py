@@ -148,15 +148,15 @@ class Config:
                     stacklevel=2,
                 )
             return value
-        checked = "\n  ".join(sources_checked)
+        checked = ", ".join(sources_checked)
         if self._debug:
             warnings.warn(
-                f"`{key}` has no default and was not found in any of:\n  {checked}",
+                f"`{key}` has no default and was not found in any of: {checked}",
                 ConfigWarning,
                 stacklevel=2,
             )
         else:
-            raise KeyError(f"`{key}` not found in any of:\n  {checked}")
+            raise KeyError(f"`{key}` not found in any of: {checked}")
         return default
 
     def _perform_cast(self, value, cast, key=""):

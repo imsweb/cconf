@@ -25,6 +25,8 @@ setup(
     platforms="any",
     extras_require={
         "fernet": ["cryptography"],
+        "secretserver": ["python-tss-sdk"],
+        "all": ["cryptography", "python-tss-sdk"],
     },
     entry_points={
         "console_scripts": ["cconf=cconf.cli:main"],

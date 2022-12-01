@@ -107,6 +107,7 @@ class Config:
 
     def __call__(self, key, default=undefined, cast=None, sensitive=False, ttl=None):
         sources_checked = []
+        key = str(key)
         for source in self._sources:
             sources_checked.append(str(source))
             try:

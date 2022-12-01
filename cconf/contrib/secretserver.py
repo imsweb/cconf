@@ -49,10 +49,18 @@ class SecretServerSource(BaseSource):
         self.prefix = prefix or []
         self.field = field
 
+    def _get_secret(self, name_or_id):
+        if name_or_id.isdigit():
+            # Ignore the prefix if fetching a secret by ID.
+            return self.ss.get_secret(name_or_id)
+        else:
+            # Otherwise prefix the secret name and fetch by path.
+            path = "\\".join([*self.prefix, name_or_id])
+            return self.ss.get_secret_by_path(path)
+
     def __getitem__(self, key):
-        path = "\\".join([*self.prefix, key])
         try:
-            secret = self.ss.get_secret_by_path(path)
+            secret = self._get_secret(key)
         except SecretServerError as ex:
             raise ConfigError("{}: {}".format(key, ex.message))
         for item in secret["items"]:

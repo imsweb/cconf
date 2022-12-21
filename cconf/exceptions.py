@@ -4,3 +4,7 @@ class ConfigError(Exception):
 
 class ConfigWarning(UserWarning):
     pass
+
+
+class PolicyError(Exception):
+    pass

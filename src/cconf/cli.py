@@ -32,7 +32,8 @@ def setup_parser(parser):
     )
     subs = parser.add_subparsers(dest="action")
     subs.add_parser("check")
-    subs.add_parser("genkey")
+    genkey = subs.add_parser("genkey")
+    genkey.add_argument("-o", "--output", default=None)
     encrypt = subs.add_parser("encrypt")
     encrypt.add_argument("--keyfile", default=None)
     encrypt.add_argument("value", nargs=1)
@@ -59,7 +60,12 @@ def check(config, **options):
 def genkey(config, **options):
     from cryptography.fernet import Fernet
 
-    log(Fernet.generate_key().decode())
+    filename = options.get("output")
+    if filename:
+        with open(filename, "w") as f:
+            f.write(Fernet.generate_key().decode())
+    else:
+        log(Fernet.generate_key().decode())
 
 
 def encrypt(config, **options):

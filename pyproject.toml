@@ -1,0 +1,47 @@
+[project]
+name = "cconf"
+dynamic = ["version"]
+description = "Multi-sourced (and optionally encrypted) configuration management."
+authors = [
+    { name = "Dan Watson", email = "watsond@imsweb.com" }
+]
+dependencies = []
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "BSD" }
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+fernet = ["cryptography"]
+secretserver = ["python-tss-sdk"]
+all = ["cryptography", "python-tss-sdk"]
+
+[project.urls]
+Homepage = "https://github.com/imsweb/cconf"
+
+[project.scripts]
+cconf = "cconf.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "cryptography",
+]
+
+[tool.hatch.version]
+path = "src/cconf/__init__.py"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+isort.known-first-party = ["cconf"]

@@ -5,3 +5,4 @@ build
 dist
 .vscode
 .DS_Store
+.nova

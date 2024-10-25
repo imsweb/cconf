@@ -24,6 +24,7 @@ class SecretServerSource(BaseSource):
         domain: Optional[str] = None,
         prefix: Optional[list] = None,
         field: Optional[str] = None,
+        verify: bool = False,
     ):
         if isinstance(ss, SecretServer):
             self.ss = ss
@@ -48,6 +49,11 @@ class SecretServerSource(BaseSource):
             self.ss = SecretServer(ss, auth)
         self.prefix = prefix or []
         self.field = field
+        if verify:
+            try:
+                self.ss.search_secrets()
+            except SecretServerError as e:
+                raise ConfigError(f"SecretServerError: {e.message}")
 
     def _get_secret(self, name_or_id):
         if name_or_id.isdigit():

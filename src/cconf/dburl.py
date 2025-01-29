@@ -1,12 +1,23 @@
-import collections
-import urllib.parse as urlparse
-
-Engine = collections.namedtuple("Engine", ["backend", "string_ports", "options"])
-
-ENGINE_SCHEMES = {}
+from collections.abc import Iterable
+from typing import Any, NamedTuple, Optional, Union
+from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
 
 
-def register(backend, schemes=None, string_ports=False, options=None):
+class Engine(NamedTuple):
+    backend: str
+    string_ports: bool
+    options: dict[str, Any]
+
+
+ENGINE_SCHEMES: dict[str, Engine] = {}
+
+
+def register(
+    backend: str,
+    schemes: Optional[Iterable[str]] = None,
+    string_ports: bool = False,
+    options: Optional[dict[str, Any]] = None,
+):
     if schemes is None:
         schemes = [backend.rsplit(".")[-1]]
     elif isinstance(schemes, str):
@@ -28,20 +39,24 @@ register("django.contrib.gis.db.backends.oracle", "oraclegis")
 register("django.db.backends.sqlite3", "sqlite")
 
 
-def parse(url, backend=None, **settings):
-    if isinstance(url, dict):
-        return {**url, **settings}
+def parse(
+    url_or_config: Union[str, dict[str, Any]],
+    backend: Optional[str] = None,
+    **settings: Any,
+) -> dict[str, Any]:
+    if isinstance(url_or_config, dict):
+        return {**url_or_config, **settings}
 
-    if url == "sqlite://:memory:":
+    if url_or_config == "sqlite://:memory:":
         return {"ENGINE": ENGINE_SCHEMES["sqlite"].backend, "NAME": ":memory:"}
 
-    url = urlparse.urlparse(url)
+    url = urlparse(url_or_config)
     if url.scheme not in ENGINE_SCHEMES:
         raise ValueError(f"Unknown database scheme: {url.scheme}")
     engine = ENGINE_SCHEMES[url.scheme]
-    options = {}
+    options: dict[str, Any] = {}
 
-    path = urlparse.unquote_plus(url.path[1:].split("?")[0])
+    path = unquote_plus(url.path[1:].split("?")[0])
     if url.scheme == "sqlite" and path == "":
         path = ":memory:"
 
@@ -49,7 +64,7 @@ def parse(url, backend=None, **settings):
 
     # Pass the query string into OPTIONS.
     if url.query:
-        for key, values in urlparse.parse_qs(url.query).items():
+        for key, values in parse_qs(url.query).items():
             if key in engine.options:
                 options.update(engine.options[key](values))
             else:
@@ -59,13 +74,13 @@ def parse(url, backend=None, **settings):
     options.update(settings.pop("OPTIONS", {}))
 
     # Update with environment configuration.
-    config = {"ENGINE": backend or engine.backend}
+    config: dict[str, Any] = {"ENGINE": backend or engine.backend}
     if path:
-        config["NAME"] = urlparse.unquote(path)
+        config["NAME"] = unquote(path)
     if url.username:
-        config["USER"] = urlparse.unquote(url.username)
+        config["USER"] = unquote(url.username)
     if url.password:
-        config["PASSWORD"] = urlparse.unquote(url.password)
+        config["PASSWORD"] = unquote(url.password)
     if url.hostname:
         config["HOST"] = url.hostname
     if port:

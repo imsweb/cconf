@@ -1,28 +1,24 @@
 import base64
 import binascii
-from typing import Optional, TextIO
+from typing import Iterable, Optional, TextIO, Union
+
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from .exceptions import ConfigError
-from .policy import UserOnly, safe_open
-
-try:
-    from cryptography.fernet import Fernet, InvalidToken, MultiFernet
-
-    has_fernet = True
-except ImportError:
-    has_fernet = False
+from .policy import PolicyCallable, UserOnly, safe_open
+from .types import StrPath
 
 
 class DecryptError(Exception):
     pass
 
 
-def read_keys(fileobj: TextIO):
+def read_keys(fileobj: TextIO) -> MultiFernet:
     """
     Reads Fernet keys from a file-like object, one per line. Returns a list of Fernet
     objects.
     """
-    fernets = []
+    fernets: list[Fernet] = []
     for line in fileobj.readlines():
         # TODO: skip commented out lines?
         key = line.strip()
@@ -44,9 +40,7 @@ class Cipher:
 class Keys(Cipher):
     secure = True
 
-    def __init__(self, keyiter):
-        if not has_fernet:
-            raise RuntimeError("Using `Keys` requires the `cryptography` module.")
+    def __init__(self, keyiter: Iterable[Union[str, bytes, Fernet]]):
         self._keys = MultiFernet(
             [k if isinstance(k, Fernet) else Fernet(k) for k in keyiter]
         )
@@ -63,29 +57,26 @@ class Keys(Cipher):
 
 class KeyFile(Cipher):
     secure = True
+    _keys: Optional[MultiFernet] = None
 
-    def __init__(self, filename: str, policy=UserOnly):
+    def __init__(self, filename: StrPath, policy: Optional[PolicyCallable] = UserOnly):
         self.filename = filename
         self.policy = policy
-        self._keys = None
 
     def _load_keys(self):
-        if not has_fernet:
-            raise RuntimeError("Using `KeyFile` requires the `cryptography` module.")
         if self._keys is None:
             with safe_open(self.filename, policy=self.policy) as fileobj:
                 self._keys = read_keys(fileobj)
         if not self._keys:
             raise ConfigError(f"No keys found for: {self}")
+        return self._keys
 
     def encrypt(self, value: str) -> str:
-        self._load_keys()
-        return self._keys.encrypt(value.encode()).decode()
+        return self._load_keys().encrypt(value.encode()).decode()
 
     def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
-        self._load_keys()
         try:
-            return self._keys.decrypt(value.encode(), ttl=ttl).decode()
+            return self._load_keys().decrypt(value.encode(), ttl=ttl).decode()
         except InvalidToken:
             raise DecryptError
 

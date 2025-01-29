@@ -1,12 +1,12 @@
-import collections
 import datetime
 import os
 import warnings
-from pathlib import Path
+from typing import Any, Callable, Mapping, NamedTuple, Optional, Union
 
 from .ciphers import DecryptError
 from .exceptions import ConfigError, ConfigWarning
 from .sources import BaseSource, EnvDir, EnvFile, HostEnv, Source
+from .types import StrPath
 
 BOOLEAN_STRINGS = {
     "true": True,
@@ -17,9 +17,18 @@ BOOLEAN_STRINGS = {
     "0": False,
 }
 
-ConfigValue = collections.namedtuple(
-    "ConfigValue", ["raw", "value", "source", "default", "sensitive", "ttl"]
-)
+
+class ConfigValue(NamedTuple):
+    raw: Any
+    value: Any
+    source: Optional[BaseSource]
+    default: Any
+    sensitive: bool
+    ttl: Optional[int]
+
+
+SourceTypes = Union[BaseSource, StrPath, Mapping[str, Any]]
+CastCallable = Callable[..., Any]
 
 
 class undefined:
@@ -28,7 +37,10 @@ class undefined:
 
 
 class Config:
-    def __init__(self, *sources, **kwargs):
+    _sources: list[BaseSource]
+    _defined: dict[str, ConfigValue]
+
+    def __init__(self, *sources: SourceTypes, **kwargs: Any):
         self._debug = False
         self._previous_debug = False
         self.setup(*sources, **kwargs)
@@ -36,24 +48,24 @@ class Config:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc_details):
+    def __exit__(self, *exc_details: Any):
         self._debug = self._previous_debug
 
-    def setup(self, *sources, **kwargs):
+    def setup(self, *sources: SourceTypes, **kwargs: Any):
         self._debug = kwargs.pop("debug", self._debug)
         self._previous_debug = self._debug
         self.reset()
         for source in sources:
             if isinstance(source, BaseSource):
                 self.source(source)
-            elif isinstance(source, (str, Path)):
+            elif isinstance(source, (str, os.PathLike)):
                 if not os.path.exists(source):
                     raise ConfigError(f"File or directory not found: `{source}`")
                 if os.path.isdir(source):
                     self.dir(source, **kwargs)
                 else:
                     self.file(source, **kwargs)
-            elif hasattr(source, "__getitem__"):
+            elif isinstance(source, Mapping):  # type: ignore
                 self.env(source, **kwargs)
             else:
                 raise ConfigError(f"Unknown configuration source: {source}")
@@ -66,31 +78,31 @@ class Config:
         self._defined = {}
         return self
 
-    def debug(self, value=True):
+    def debug(self, value: bool = True):
         self._previous_debug = self._debug
         self._debug = value
         return self
 
-    def source(self, source):
+    def source(self, source: BaseSource):
         """
         Adds a configuration source to the list of checked sources.
         """
         self._sources.append(source)
         return self
 
-    def file(self, path, **kwargs):
+    def file(self, path: StrPath, **kwargs: Any):
         """
         Adds an `EnvFile` source to the list of checked sources.
         """
         return self.source(EnvFile(path, **kwargs))
 
-    def dir(self, path, **kwargs):
+    def dir(self, path: StrPath, **kwargs: Any):
         """
         Adds an `EnvDir` source to the list of checked sources.
         """
         return self.source(EnvDir(path, **kwargs))
 
-    def env(self, environ=None, **kwargs):
+    def env(self, environ: Optional[Mapping[str, Any]] = None, **kwargs: Any):
         """
         Adds either a `HostEnv` source, or a generic `Source` to the list of checked
         sources, based on whether `environ` is set.
@@ -105,16 +117,23 @@ class Config:
         """
         return {k: v.value for k, v in self._defined.items()}
 
-    def __call__(self, key, default=undefined, cast=None, sensitive=False, ttl=None):
-        sources_checked = []
+    def __call__(
+        self,
+        key: str,
+        default: Any = undefined,
+        cast: Optional[CastCallable] = None,
+        sensitive: bool = False,
+        ttl: Optional[Union[int, datetime.timedelta]] = None,
+    ) -> Any:
+        sources_checked: list[str] = []
         key = str(key)
+        if isinstance(ttl, datetime.timedelta):
+            ttl = int(ttl.total_seconds())
         for source in self._sources:
             sources_checked.append(str(source))
             try:
                 raw = source[key]
                 if sensitive:
-                    if isinstance(ttl, datetime.timedelta):
-                        ttl = int(ttl.total_seconds())
                     raw = source.decrypt(raw, ttl=ttl)
                 value = self._perform_cast(raw, cast, key=key)
                 self._defined[key] = ConfigValue(
@@ -160,7 +179,7 @@ class Config:
             raise KeyError(f"`{key}` not found in any of: {checked}")
         return default
 
-    def _perform_cast(self, value, cast, key=""):
+    def _perform_cast(self, value: Any, cast: Optional[CastCallable], key: str = ""):
         if cast is None or value is None:
             return value
         elif cast is bool and isinstance(value, str):

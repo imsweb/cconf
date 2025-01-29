@@ -14,11 +14,12 @@ from .types import (
     DatabaseDict,
     Duration,
     Secret,
+    Separated,
 )
 
-__version__ = "0.9.9"
+__version__ = "1.0.0"
 __version_info__ = tuple(
-    int(num) if num.isdigit() else num
+    int(num) if num.isdigit() else str(num)
     for num in re.findall(r"([a-z]*\d+)", __version__)
 )
 
@@ -46,4 +47,5 @@ __all__ = [
     "UserOnly",
     "UserOrGroup",
     "Secret",
+    "Separated",
 ]

@@ -1,9 +1,14 @@
+import functools
+import os
 import re
 import shlex
 from datetime import timedelta
+from typing import Any, Callable, Optional, Union, overload
 from warnings import warn
 
 from . import cacheurl, dburl
+
+StrPath = Union[str, os.PathLike[str]]
 
 
 class Secret(str):
@@ -18,11 +23,11 @@ class Secret(str):
         return f"{class_name}('**********')"
 
 
-def CommaSeparated(python_type):
-    def _parser(value):
+def Separated(python_type: type, sep: str = ","):
+    def _parser(value: Any):
         if isinstance(value, str):
             splitter = shlex.shlex(value, posix=True)
-            splitter.whitespace = ","
+            splitter.whitespace = sep
             splitter.whitespace_split = True
             return [python_type(item.strip()) for item in splitter]
         else:
@@ -31,8 +36,9 @@ def CommaSeparated(python_type):
     return _parser
 
 
-CommaSeparatedStrings = CommaSeparated(str)
-CommaSeparatedInts = CommaSeparated(int)
+CommaSeparated = functools.partial(Separated, sep=",")
+CommaSeparatedStrings = Separated(str)
+CommaSeparatedInts = Separated(int)
 
 
 class Duration(timedelta):
@@ -54,7 +60,7 @@ class Duration(timedelta):
 
     SPLITTER = re.compile("([{}])".format("".join(SPECS.keys())))
 
-    def __new__(cls, value):
+    def __new__(cls, value: Union[str, timedelta]):
         if isinstance(value, timedelta):
             return timedelta.__new__(cls, seconds=value.total_seconds())
         if value.isdigit():
@@ -74,7 +80,7 @@ class Duration(timedelta):
 
     def duration_string(self):
         seconds = self.total_seconds()
-        duration = []
+        duration: list[str] = []
         for fmt, sec in Duration.SPECS.items():
             if fmt == "y":
                 # Years as a format specifier is on its way out.
@@ -86,11 +92,19 @@ class Duration(timedelta):
         return "".join(duration)
 
 
-def DatabaseDict(value=None, **settings):
+@overload
+def DatabaseDict(value: str) -> dict[str, Any]: ...
+
+
+@overload
+def DatabaseDict(**settings: Any) -> Callable[..., Any]: ...
+
+
+def DatabaseDict(value: Optional[str] = None, **settings: Any) -> Any:
     if settings:
         assert value is None
 
-        def parse_wrapper(url):
+        def parse_wrapper(url: str):
             return dburl.parse(url, **settings)
 
         return parse_wrapper
@@ -101,11 +115,19 @@ def DatabaseDict(value=None, **settings):
         raise ValueError("No database URL specified.")
 
 
-def CacheDict(value=None, **settings):
+@overload
+def CacheDict(value: str) -> dict[str, Any]: ...
+
+
+@overload
+def CacheDict(**settings: Any) -> Callable[..., Any]: ...
+
+
+def CacheDict(value: Optional[str] = None, **settings: Any):
     if settings:
         assert value is None
 
-        def parse_wrapper(url):
+        def parse_wrapper(url: str):
             return cacheurl.parse(url, **settings)
 
         return parse_wrapper

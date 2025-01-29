@@ -5,10 +5,12 @@ description = "Multi-sourced (and optionally encrypted) configuration management
 authors = [
     { name = "Dan Watson", email = "watsond@imsweb.com" }
 ]
-dependencies = []
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "BSD" }
+dependencies = [
+    "cryptography",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
@@ -19,10 +21,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
+[dependency-groups]
+dev = [
+    "django>=4.2.18",
+]
+
 [project.optional-dependencies]
-fernet = ["cryptography"]
 secretserver = ["python-tss-sdk"]
-all = ["cryptography", "python-tss-sdk"]
+all = ["python-tss-sdk"]
 
 [project.urls]
 Homepage = "https://github.com/imsweb/cconf"
@@ -36,7 +42,6 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 dev-dependencies = [
-    "cryptography",
     "python-tss-sdk",
 ]
 
@@ -46,3 +51,7 @@ path = "src/cconf/__init__.py"
 [tool.ruff.lint]
 extend-select = ["I"]
 isort.known-first-party = ["cconf"]
+
+[tool.pyright]
+reportPrivateUsage = false
+reportMissingModuleSource = false

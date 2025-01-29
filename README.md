@@ -11,11 +11,6 @@ crypography and the ability to specify a maximum valid lifetime (`ttl`).
 
 `pip install cconf`
 
-To use `Fernet` keys for encrypting sensitive settings, `cconf` requires the
-[cryptography](https://cryptography.io/) module, which can be installed as an extra:
-
-`pip install cconf[fernet]`
-
 
 ## Usage
 

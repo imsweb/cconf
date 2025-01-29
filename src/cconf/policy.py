@@ -1,11 +1,15 @@
 import os
 import stat
 import warnings
+from typing import Any, Callable, Optional
 
 from .exceptions import ConfigWarning, PolicyError
+from .types import StrPath
+
+PolicyCallable = Callable[[StrPath], None]
 
 
-def UserOnly(path):
+def UserOnly(path: StrPath):
     if os.name != "posix":
         warnings.warn(
             f"UserOnly policy for {path} is only enforced in posix environments.",
@@ -19,7 +23,7 @@ def UserOnly(path):
         raise PolicyError(f"`{path}` has `group` and/or `other` permissions.")
 
 
-def UserOrGroup(path):
+def UserOrGroup(path: StrPath):
     if os.name != "posix":
         warnings.warn(
             f"UserOrGroup policy for {path} is only enforced in posix environments.",
@@ -31,8 +35,12 @@ def UserOrGroup(path):
         raise PolicyError(f"`{path}` has `other` permissions.")
 
 
-def safe_open(path, *args, **kwargs):
-    policy = kwargs.pop("policy", None)
+def safe_open(
+    path: StrPath,
+    *,
+    policy: Optional[PolicyCallable] = None,
+    **kwargs: Any,
+):
     if policy:
         policy(path)
-    return open(path, *args, **kwargs)
+    return open(path, "r", **kwargs)

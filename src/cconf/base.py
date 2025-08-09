@@ -1,7 +1,8 @@
 import datetime
 import os
 import warnings
-from typing import Any, Callable, Mapping, NamedTuple, Optional, Union
+from collections.abc import Callable, Mapping
+from typing import Any, NamedTuple, TypeVar, overload
 
 from .ciphers import DecryptError
 from .exceptions import ConfigError, ConfigWarning
@@ -10,30 +11,38 @@ from .types import StrPath
 
 BOOLEAN_STRINGS = {
     "true": True,
+    "t": True,
     "yes": True,
+    "y": True,
     "1": True,
     "false": False,
+    "f": False,
     "no": False,
+    "n": False,
     "0": False,
 }
+
+
+SourceTypes = BaseSource | StrPath | Mapping[str, Any]
+
+T = TypeVar("T")
 
 
 class ConfigValue(NamedTuple):
     raw: Any
     value: Any
-    source: Optional[BaseSource]
+    source: BaseSource | None
     default: Any
     sensitive: bool
-    ttl: Optional[int]
+    ttl: int | None
 
 
-SourceTypes = Union[BaseSource, StrPath, Mapping[str, Any]]
-CastCallable = Callable[..., Any]
-
-
-class undefined:
+class Undefined:
     def __bool__(self):
         return False
+
+
+undefined = Undefined()
 
 
 class Config:
@@ -102,7 +111,7 @@ class Config:
         """
         return self.source(EnvDir(path, **kwargs))
 
-    def env(self, environ: Optional[Mapping[str, Any]] = None, **kwargs: Any):
+    def env(self, environ: Mapping[str, Any] | None = None, **kwargs: Any):
         """
         Adds either a `HostEnv` source, or a generic `Source` to the list of checked
         sources, based on whether `environ` is set.
@@ -117,13 +126,38 @@ class Config:
         """
         return {k: v.value for k, v in self._defined.items()}
 
+    # When default=None, the returned value may be None (any cast of None is None).
+    @overload
+    def __call__(
+        self,
+        key: str,
+        default: None,
+        *,
+        cast: Callable[..., T] = str,
+        sensitive: bool = ...,
+        ttl: int | datetime.timedelta | None = ...,
+    ) -> T | None: ...
+
+    # Otherwise, no matter what the default, the returned value is of type T.
+    @overload
     def __call__(
         self,
         key: str,
         default: Any = undefined,
-        cast: Optional[CastCallable] = None,
+        *,
+        cast: Callable[..., T] = str,
+        sensitive: bool = ...,
+        ttl: int | datetime.timedelta | None = ...,
+    ) -> T: ...
+
+    def __call__(
+        self,
+        key: str,
+        default: Any = undefined,
+        *,
+        cast: Callable = str,
         sensitive: bool = False,
-        ttl: Optional[Union[int, datetime.timedelta]] = None,
+        ttl: int | datetime.timedelta | None = None,
     ) -> Any:
         sources_checked: list[str] = []
         key = str(key)
@@ -175,16 +209,38 @@ class Config:
                 ConfigWarning,
                 stacklevel=2,
             )
-        else:
-            raise KeyError(f"`{key}` not found in any of: {checked}")
-        return default
+            return default
+        raise KeyError(f"`{key}` not found in any of: {checked}")
 
-    def _perform_cast(self, value: Any, cast: Optional[CastCallable], key: str = ""):
-        if cast is None or value is None:
+    # None always casts to None.
+    @overload
+    def _perform_cast(
+        self,
+        value: None,
+        cast: Callable[..., T],
+        key: str = "",
+    ) -> None: ...
+
+    # Otherwise, this always returns the cast type.
+    @overload
+    def _perform_cast(
+        self,
+        value: Any,
+        cast: Callable[..., T],
+        key: str = "",
+    ) -> T: ...
+
+    def _perform_cast(
+        self,
+        value: Any,
+        cast: Callable,
+        key: str = "",
+    ) -> Any:
+        if value is None:
             return value
         elif cast is bool and isinstance(value, str):
             try:
-                return BOOLEAN_STRINGS[value.lower()]
+                return cast(BOOLEAN_STRINGS[value.lower()])
             except KeyError:
                 raise ValueError(f"Invalid boolean for `{key}`: `{value}`")
         try:

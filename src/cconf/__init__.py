@@ -1,3 +1,4 @@
+import importlib.metadata
 import re
 
 from .base import Config, config, undefined
@@ -17,7 +18,7 @@ from .types import (
     Separated,
 )
 
-__version__ = "1.0.0"
+__version__ = importlib.metadata.version("cconf")
 __version_info__ = tuple(
     int(num) if num.isdigit() else str(num)
     for num in re.findall(r"([a-z]*\d+)", __version__)

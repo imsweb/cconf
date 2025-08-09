@@ -1,7 +1,8 @@
 import os
 import stat
 import warnings
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from .exceptions import ConfigWarning, PolicyError
 from .types import StrPath
@@ -38,7 +39,7 @@ def UserOrGroup(path: StrPath):
 def safe_open(
     path: StrPath,
     *,
-    policy: Optional[PolicyCallable] = None,
+    policy: PolicyCallable | None = None,
     **kwargs: Any,
 ):
     if policy:

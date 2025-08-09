@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, NamedTuple
 from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
 
 
@@ -14,9 +14,9 @@ ENGINE_SCHEMES: dict[str, Engine] = {}
 
 def register(
     backend: str,
-    schemes: Optional[Iterable[str]] = None,
+    schemes: Iterable[str] | None = None,
     string_ports: bool = False,
-    options: Optional[dict[str, Any]] = None,
+    options: dict[str, Any] | None = None,
 ):
     if schemes is None:
         schemes = [backend.rsplit(".")[-1]]
@@ -40,8 +40,8 @@ register("django.db.backends.sqlite3", "sqlite")
 
 
 def parse(
-    url_or_config: Union[str, dict[str, Any]],
-    backend: Optional[str] = None,
+    url_or_config: str | dict[str, Any],
+    backend: str | None = None,
     **settings: Any,
 ) -> dict[str, Any]:
     if isinstance(url_or_config, dict):

@@ -1,6 +1,7 @@
 import base64
 import binascii
-from typing import Iterable, Optional, TextIO, Union
+from collections.abc import Iterable
+from typing import ClassVar, TextIO
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
@@ -28,19 +29,19 @@ def read_keys(fileobj: TextIO) -> MultiFernet:
 
 
 class Cipher:
-    secure = False
+    secure: ClassVar[bool]
 
     def encrypt(self, value: str) -> str:
         raise NotImplementedError()
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         raise NotImplementedError()
 
 
 class Keys(Cipher):
     secure = True
 
-    def __init__(self, keyiter: Iterable[Union[str, bytes, Fernet]]):
+    def __init__(self, keyiter: Iterable[str | bytes | Fernet]):
         self._keys = MultiFernet(
             [k if isinstance(k, Fernet) else Fernet(k) for k in keyiter]
         )
@@ -48,7 +49,7 @@ class Keys(Cipher):
     def encrypt(self, value: str) -> str:
         return self._keys.encrypt(value.encode()).decode()
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         try:
             return self._keys.decrypt(value.encode(), ttl=ttl).decode()
         except InvalidToken:
@@ -57,15 +58,15 @@ class Keys(Cipher):
 
 class KeyFile(Cipher):
     secure = True
-    _keys: Optional[MultiFernet] = None
 
-    def __init__(self, filename: StrPath, policy: Optional[PolicyCallable] = UserOnly):
-        self.filename = filename
-        self.policy = policy
+    def __init__(self, filename: StrPath, policy: PolicyCallable | None = UserOnly):
+        self._filename = filename
+        self._policy = policy
+        self._keys = None
 
-    def _load_keys(self):
+    def _load_keys(self) -> MultiFernet:
         if self._keys is None:
-            with safe_open(self.filename, policy=self.policy) as fileobj:
+            with safe_open(self._filename, policy=self._policy) as fileobj:
                 self._keys = read_keys(fileobj)
         if not self._keys:
             raise ConfigError(f"No keys found for: {self}")
@@ -74,7 +75,7 @@ class KeyFile(Cipher):
     def encrypt(self, value: str) -> str:
         return self._load_keys().encrypt(value.encode()).decode()
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         try:
             return self._load_keys().decrypt(value.encode(), ttl=ttl).decode()
         except InvalidToken:
@@ -87,18 +88,18 @@ class Base64(Cipher):
     def encrypt(self, value: str) -> str:
         return base64.b64encode(value.encode()).decode()
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         try:
             return base64.b64decode(value.encode()).decode()
         except binascii.Error:
             raise DecryptError
 
 
-class Identity:
+class Identity(Cipher):
     secure = False
 
     def encrypt(self, value: str) -> str:
         return value
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         return value

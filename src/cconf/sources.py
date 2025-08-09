@@ -1,5 +1,6 @@
 import os
-from typing import Any, Iterable, Mapping, Optional, TextIO, Union
+from collections.abc import Iterable, Mapping
+from typing import Any, TextIO
 from warnings import warn
 
 from cryptography.fernet import Fernet
@@ -10,7 +11,7 @@ from .policy import PolicyCallable, safe_open
 from .types import StrPath
 
 
-def read_entries(fileobj: TextIO):
+def read_entries(fileobj: TextIO) -> dict[str, str]:
     """
     Reads environment variable assignments from a file-like object. Only lines that
     contain an equal sign (=) and do not start with # (comments) are considered. Any
@@ -33,30 +34,26 @@ class BaseSource:
     def __str__(self):
         return self.__class__.__name__
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> str:
         raise NotImplementedError()
 
     def encrypt(self, value: str) -> str:
         raise NotImplementedError()
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         raise NotImplementedError()
 
 
 class Source(BaseSource):
-    default_cipher = Base64
-
-    _cipher: Cipher
+    default_cipher: type[Cipher] = Base64
 
     def __init__(
         self,
-        environ: Optional[Mapping[str, Any]] = None,
-        keys: Optional[
-            Union[Cipher, StrPath, Iterable[Union[str, bytes, Fernet]]]
-        ] = None,
-        key_file: Optional[StrPath] = None,
+        environ: Mapping[str, str] | None = None,
+        keys: Cipher | StrPath | Iterable[str | bytes | Fernet] | None = None,
+        key_file: StrPath | None = None,
     ):
-        self._environ: Mapping[str, Any] = environ or {}
+        self._environ = environ or {}
         if key_file is not None:
             warn(
                 "The `key_file` argument is deprecated; use `keys` instead.",
@@ -70,18 +67,18 @@ class Source(BaseSource):
             self._cipher = keys
         elif isinstance(keys, (str, os.PathLike)):
             self._cipher = KeyFile(keys)
-        elif isinstance(keys, (list, tuple)):
+        elif isinstance(keys, Iterable):
             self._cipher = Keys(keys)
         else:
             raise ConfigError("Unsupported `keys` type.")
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> str:
         return self._environ[key]
 
     def encrypt(self, value: str) -> str:
         return self._cipher.encrypt(value)
 
-    def decrypt(self, value: str, ttl: Optional[int] = None) -> str:
+    def decrypt(self, value: str, ttl: int | None = None) -> str:
         return self._cipher.decrypt(value, ttl=ttl)
 
 
@@ -102,7 +99,7 @@ class EnvFile(Source):
     def __init__(
         self,
         env_file: StrPath,
-        policy: Optional[PolicyCallable] = None,
+        policy: PolicyCallable | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -113,7 +110,7 @@ class EnvFile(Source):
     def __str__(self):
         return "{}({})".format(self.__class__.__name__, self._env_file)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> str:
         if self._items is None:
             try:
                 with safe_open(self._env_file, policy=self._policy) as fileobj:
@@ -132,7 +129,7 @@ class EnvDir(Source):
     def __init__(
         self,
         env_dir: StrPath,
-        policy: Optional[PolicyCallable] = None,
+        policy: PolicyCallable | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -142,7 +139,7 @@ class EnvDir(Source):
     def __str__(self):
         return "{}({})".format(self.__class__.__name__, self._env_dir)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> str:
         entry_path = os.path.join(self._env_dir, key)
         try:
             with safe_open(entry_path, policy=self._policy) as fileobj:

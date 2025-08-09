@@ -2,13 +2,15 @@ import functools
 import os
 import re
 import shlex
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, Callable, Optional, Union, overload
+from typing import Any, TypeAlias, TypeVar, overload
 from warnings import warn
 
 from . import cacheurl, dburl
 
-StrPath = Union[str, os.PathLike[str]]
+T = TypeVar("T")
+StrPath: TypeAlias = str | os.PathLike[str]
 
 
 class Secret(str):
@@ -23,7 +25,10 @@ class Secret(str):
         return f"{class_name}('**********')"
 
 
-def Separated(python_type: type, sep: str = ","):
+def Separated(
+    python_type: Callable[..., T],
+    sep: str = ",",
+) -> Callable[[Any], list[T]]:
     def _parser(value: Any):
         if isinstance(value, str):
             splitter = shlex.shlex(value, posix=True)
@@ -60,7 +65,7 @@ class Duration(timedelta):
 
     SPLITTER = re.compile("([{}])".format("".join(SPECS.keys())))
 
-    def __new__(cls, value: Union[str, timedelta]):
+    def __new__(cls, value: str | timedelta):
         if isinstance(value, timedelta):
             return timedelta.__new__(cls, seconds=value.total_seconds())
         if value.isdigit():
@@ -97,10 +102,10 @@ def DatabaseDict(value: str) -> dict[str, Any]: ...
 
 
 @overload
-def DatabaseDict(**settings: Any) -> Callable[..., Any]: ...
+def DatabaseDict(**settings: Any) -> Callable[..., dict[str, Any]]: ...
 
 
-def DatabaseDict(value: Optional[str] = None, **settings: Any) -> Any:
+def DatabaseDict(value: str | None = None, **settings: Any) -> Any:
     if settings:
         assert value is None
 
@@ -120,10 +125,10 @@ def CacheDict(value: str) -> dict[str, Any]: ...
 
 
 @overload
-def CacheDict(**settings: Any) -> Callable[..., Any]: ...
+def CacheDict(**settings: Any) -> Callable[..., dict[str, Any]]: ...
 
 
-def CacheDict(value: Optional[str] = None, **settings: Any):
+def CacheDict(value: str | None = None, **settings: Any):
     if settings:
         assert value is None
 

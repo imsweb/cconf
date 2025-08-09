@@ -1,5 +1,5 @@
-from collections.abc import Iterable
-from typing import Any, Callable, NamedTuple, Optional, Union
+from collections.abc import Callable, Iterable
+from typing import Any, NamedTuple, Optional, Union
 from urllib.parse import ParseResult, parse_qs, urlparse
 
 Processor = Callable[[ParseResult, dict[str, Any]], Any]

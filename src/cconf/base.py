@@ -138,6 +138,18 @@ class Config:
         ttl: int | datetime.timedelta | None = ...,
     ) -> T | None: ...
 
+    # When cast=None, the returned value can't reliably be determined.
+    @overload
+    def __call__(
+        self,
+        key: str,
+        default: Any = undefined,
+        *,
+        cast: None,
+        sensitive: bool = ...,
+        ttl: int | datetime.timedelta | None = ...,
+    ) -> Any: ...
+
     # Otherwise, no matter what the default, the returned value is of type T.
     @overload
     def __call__(
@@ -155,7 +167,7 @@ class Config:
         key: str,
         default: Any = undefined,
         *,
-        cast: Callable = str,
+        cast: Callable | None = str,
         sensitive: bool = False,
         ttl: int | datetime.timedelta | None = None,
     ) -> Any:
@@ -217,7 +229,16 @@ class Config:
     def _perform_cast(
         self,
         value: None,
-        cast: Callable[..., T],
+        cast: Callable,
+        key: str = "",
+    ) -> None: ...
+
+    # No cast, no problem.
+    @overload
+    def _perform_cast(
+        self,
+        value: Any,
+        cast: None,
         key: str = "",
     ) -> None: ...
 
@@ -233,10 +254,10 @@ class Config:
     def _perform_cast(
         self,
         value: Any,
-        cast: Callable,
+        cast: Callable | None,
         key: str = "",
     ) -> Any:
-        if value is None:
+        if cast is None or value is None:
             return value
         elif cast is bool and isinstance(value, str):
             try:

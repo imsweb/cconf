@@ -137,3 +137,10 @@ class ConfigTests(unittest.TestCase):
             with open(os.path.join(dirname, "SOME_KEY"), "w") as f:
                 f.write("supersecret\n")
             self.assertEqual(config("SOME_KEY", sensitive=True), "supersecret")
+
+    def test_casting(self):
+        config = Config({"SOME_KEY": 1})
+        self.assertEqual(config("SOME_KEY"), "1")
+        self.assertEqual(config("SOME_KEY", cast=None), 1)
+        self.assertEqual(config("OTHER_KEY", 1), "1")
+        self.assertEqual(config("OTHER_KEY", 1, cast=None), 1)

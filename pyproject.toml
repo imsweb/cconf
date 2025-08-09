@@ -1,6 +1,6 @@
 [project]
 name = "cconf"
-version = "1.0.0.dev"
+version = "1.0.0.dev0"
 description = "Multi-sourced (and optionally encrypted) configuration management."
 authors = [
     { name = "Dan Watson", email = "watsond@imsweb.com" }

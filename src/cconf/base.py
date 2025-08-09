@@ -246,7 +246,7 @@ class Config:
         try:
             return cast(value)
         except (TypeError, ValueError):
-            raise ValueError(f"Invalid {cast.__name__} for `{key}`: `{value}`")
+            raise ValueError(f"Invalid value for `{key}`: `{value}`")
 
 
 # Shared singleton, configured to use environment variables by default.

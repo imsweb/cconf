@@ -4,13 +4,15 @@ import re
 import shlex
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, TypeAlias, TypeVar, overload
+from typing import Any, NamedTuple, TypeAlias, TypeVar, overload
 from warnings import warn
 
 from . import cacheurl, dburl
 
 T = TypeVar("T")
 StrPath: TypeAlias = str | os.PathLike[str]
+
+email_re = re.compile(r"[a-z0-9\._%\+\-]+@[a-z0-9\.\-]+\.[a-z]+", re.I)
 
 
 class Secret(str):
@@ -23,6 +25,26 @@ class Secret(str):
     def __repr__(self):
         class_name = self.__class__.__name__
         return f"{class_name}('**********')"
+
+
+class Recipient(NamedTuple):
+    name: str
+    email: str
+
+    @classmethod
+    def parse(cls, s: str) -> "Recipient":
+        emails = []
+
+        def _repl(match):
+            emails.append(match[0])
+            return ""
+
+        name = email_re.sub(_repl, s).replace("<", "").replace(">", "").strip()
+        if not emails:
+            raise ValueError(f"No email address found in `{s}`")
+        if len(emails) > 1:
+            raise ValueError(f"Multiple email addresses found in `{s}`")
+        return cls(name, emails[0])
 
 
 def Separated(
@@ -44,6 +66,7 @@ def Separated(
 CommaSeparated = functools.partial(Separated, sep=",")
 CommaSeparatedStrings = Separated(str)
 CommaSeparatedInts = Separated(int)
+Recipients = Separated(Recipient.parse, ";,")
 
 
 class Duration(timedelta):

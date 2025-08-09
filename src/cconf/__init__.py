@@ -14,6 +14,8 @@ from .types import (
     CommaSeparatedStrings,
     DatabaseDict,
     Duration,
+    Recipient,
+    Recipients,
     Secret,
     Separated,
 )
@@ -44,6 +46,8 @@ __all__ = [
     "Keys",
     "KeyFile",
     "PolicyError",
+    "Recipient",
+    "Recipients",
     "SecretsDir",
     "UserOnly",
     "UserOrGroup",

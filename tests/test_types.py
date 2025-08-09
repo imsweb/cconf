@@ -9,6 +9,8 @@ from cconf import (
     Config,
     DatabaseDict,
     Duration,
+    Recipient,
+    Recipients,
 )
 
 
@@ -83,3 +85,22 @@ class CastingTests(unittest.TestCase):
                 decimal.Decimal("2.72"),
             ],
         )
+
+    def test_recipients(self):
+        config = Config(
+            {"ADMINS": "Dan <d@example.com>; Alexa <a@example.com>; t@example.com"}
+        )
+        admins = config("ADMINS", cast=Recipients)
+        self.assertEqual(
+            admins,
+            [
+                Recipient("Dan", "d@example.com"),
+                Recipient("Alexa", "a@example.com"),
+                Recipient("", "t@example.com"),
+            ],
+        )
+        admins = Config()("ADMINS", "", cast=Recipients)
+        self.assertEqual(admins, [])
+        config = Config({"ADMINS": "no email"})
+        with self.assertRaises(ValueError):
+            config("ADMINS", cast=Recipients)

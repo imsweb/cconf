@@ -1,4 +1,4 @@
-# 1.0.0
+# 1.0.0 (2025-08-21)
 
 * Initial stable release
 * Dropped Python 3.9 support

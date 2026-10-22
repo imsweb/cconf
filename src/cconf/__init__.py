@@ -19,6 +19,7 @@ from .types import (
     Secret,
     Separated,
 )
+from .validators import Matches, OneOf
 
 __version__ = importlib.metadata.version("cconf")
 __version_info__ = tuple(
@@ -42,6 +43,8 @@ __all__ = [
     "HostEnv",
     "KeyFile",
     "Keys",
+    "Matches",
+    "OneOf",
     "PolicyError",
     "Recipient",
     "Recipients",

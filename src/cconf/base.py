@@ -1,7 +1,7 @@
 import datetime
 import os
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, NamedTuple, TypeVar, overload
 
 from .ciphers import DecryptError
@@ -136,6 +136,7 @@ class Config:
         cast: Callable[..., T] = str,
         sensitive: bool = ...,
         ttl: int | datetime.timedelta | None = ...,
+        validate: Sequence[Callable[[T], None]] | Callable[[T], None] | None = ...,
     ) -> T | None: ...
 
     # When cast=None, the returned value can't reliably be determined.
@@ -148,6 +149,7 @@ class Config:
         cast: None,
         sensitive: bool = ...,
         ttl: int | datetime.timedelta | None = ...,
+        validate: Sequence[Callable[[T], None]] | Callable[[T], None] | None = ...,
     ) -> Any: ...
 
     # Otherwise, no matter what the default, the returned value is of type T.
@@ -160,6 +162,7 @@ class Config:
         cast: Callable[..., T] = str,
         sensitive: bool = ...,
         ttl: int | datetime.timedelta | None = ...,
+        validate: Sequence[Callable[[T], None]] | Callable[[T], None] | None = ...,
     ) -> T: ...
 
     def __call__(
@@ -170,9 +173,9 @@ class Config:
         cast: Callable | None = str,
         sensitive: bool = False,
         ttl: int | datetime.timedelta | None = None,
+        validate: Sequence[Callable] | Callable | None = None,
     ) -> Any:
         sources_checked: list[str] = []
-        key = str(key)
         if isinstance(ttl, datetime.timedelta):
             ttl = int(ttl.total_seconds())
         for source in self._sources:
@@ -182,6 +185,12 @@ class Config:
                 if sensitive:
                     raw = source.decrypt(raw, ttl=ttl)
                 value = self._perform_cast(raw, cast, key=key)
+                if validate is not None:
+                    if callable(validate):
+                        validate(value)
+                    else:
+                        for v in validate:
+                            v(value)
                 self._defined[key] = ConfigValue(
                     raw, value, source, default, sensitive, ttl
                 )
@@ -261,7 +270,7 @@ class Config:
             return value
         elif cast is bool and isinstance(value, str):
             try:
-                return cast(BOOLEAN_STRINGS[value.lower()])
+                return BOOLEAN_STRINGS[value.lower()]
             except KeyError:
                 raise ValueError(f"Invalid boolean for `{key}`: `{value}`")
         try:

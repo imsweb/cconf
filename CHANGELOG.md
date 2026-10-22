@@ -1,3 +1,10 @@
+# 1.1.0 (TBD)
+
+* Dropped support for Python 3.10, test on Python 3.15
+* `cconf check` command outputs casted values by default now; pass `--raw` to see the raw string configs (or defaults)
+* Added basic config validation (see the [README](README.md#validation) for more info)
+
+
 # 1.0.0 (2025-08-21)
 
 * Initial stable release

@@ -110,6 +110,20 @@ simply a function that takes a single `path` argument and raises `cconf.PolicyEr
 the file should not be opened.
 
 
+## Validation
+
+When reading a config key, you may pass a `validate` argument which should be a callable
+or a sequence of callables taking the (casted) value and raising an exception (usually
+`ValueError`) if the value is not valid. For instance:
+
+```python
+from cconf import config, OneOf
+
+# Raises a ValueError if ENVIRONMENT is not "prod" or "dev".
+ENVIRONMENT = config("ENVIRONMENT", validate=OneOf("prod", "dev"))
+```
+
+
 ## Checking Configuration
 
 The `cconf` CLI tool includes a `check` command which will print out a list of
@@ -119,19 +133,39 @@ looks like this:
 
 ```
 % python -m cconf.cli -c tests.settings.prod check
+(Default)
+    DEBUG
+        False
+EnvDir(/Users/dcwatson/Projects/cconf/tests/envdirs/prod)
+    PASSWORD
+        Secret('**********')
 EnvFile(/Users/dcwatson/Projects/cconf/tests/envs/prod)
+    API_KEY
+        Secret('**********')
     HOSTNAME
         'prodhost'
     USERNAME
         'produser'
-    API_KEY
-        'prodkey'
-EnvDir(/Users/dcwatson/Projects/cconf/tests/envdirs/prod)
-    PASSWORD
-        'cc0nfRul3z!'
+```
+
+Note that the casted Python values are shown by default. To see raw source values, pass
+the `--raw` flag:
+
+```
+% python -m cconf.cli -c tests.settings.prod check --raw
 (Default)
     DEBUG
         'false'
+EnvDir(/Users/dcwatson/Projects/cconf/tests/envdirs/prod)
+    PASSWORD
+        'cc0nfRul3z!'
+EnvFile(/Users/dcwatson/Projects/cconf/tests/envs/prod)
+    API_KEY
+        'prodkey'
+    HOSTNAME
+        'prodhost'
+    USERNAME
+        'produser'
 ```
 
 ## Warnings

@@ -3,6 +3,7 @@ import importlib
 import json
 import sys
 
+from .base import Config
 from .ciphers import KeyFile
 
 
@@ -31,7 +32,8 @@ def setup_parser(parser):
         dest="config_module",
     )
     subs = parser.add_subparsers(dest="action")
-    subs.add_parser("check")
+    check = subs.add_parser("check")
+    check.add_argument("--raw", action="store_true", default=False)
     genkey = subs.add_parser("genkey")
     genkey.add_argument("-o", "--output", default=None)
     encrypt = subs.add_parser("encrypt")
@@ -45,22 +47,23 @@ def setup_parser(parser):
     k8s.add_argument("name", nargs="?", default="cconf")
 
 
-def check(config, **options):
+def check(config: Config, options: argparse.Namespace):
     source_vars = {}
     for key in sorted(config._defined):
         configval = config._defined[key]
+        display = configval.raw if options.raw else configval.value
         source_name = "(Default)" if configval.source is None else str(configval.source)
-        source_vars.setdefault(source_name, []).append((key, configval.raw))
+        source_vars.setdefault(source_name, []).append((key, display))
     for source in sorted(source_vars):
         log(f"{source}")
         for key, value in source_vars[source]:
             log(f"    {key}\n        {value!r}")
 
 
-def genkey(config, **options):
+def genkey(config: Config, options: argparse.Namespace):
     from cryptography.fernet import Fernet
 
-    filename = options.get("output")
+    filename = getattr(options, "output", None)
     if filename:
         with open(filename, "w") as f:
             f.write(Fernet.generate_key().decode())
@@ -68,22 +71,22 @@ def genkey(config, **options):
         log(Fernet.generate_key().decode())
 
 
-def encrypt(config, **options):
-    keyfile = options.get("keyfile")
+def encrypt(config: Config, options: argparse.Namespace):
+    keyfile = getattr(options, "keyfile", None)
     if keyfile:
         cipher = KeyFile(keyfile, policy=None)
-        log(cipher.encrypt(options["value"][0]))
+        log(cipher.encrypt(options.value[0]))
     else:
         for source in config._sources:
             log(source)
-            log("    {}", source.encrypt(options["value"][0]))
+            log("    {}", source.encrypt(options.value[0]))
 
 
-def dump(config, **options):
+def dump(config: Config, options: argparse.Namespace):
     data = {}
     file = sys.stdout
     should_close = False
-    if options["interactive"]:
+    if options.interactive:
         filename = input("Write to file [-]: ")
         if filename.strip() not in ("", "-"):
             file = open(filename, "w")  # noqa: SIM115
@@ -91,7 +94,7 @@ def dump(config, **options):
     for key in sorted(config._defined):
         configval = config._defined[key]
         stringval = "" if configval.raw is None else str(configval.raw)
-        if options["interactive"]:
+        if options.interactive:
             value = input(f"{key} [{stringval}]: ")
             data[key] = value.strip() or stringval
         else:
@@ -102,7 +105,7 @@ def dump(config, **options):
         file.close()
 
 
-def k8s(config, **options):
+def k8s(config: Config, options: argparse.Namespace):
     data = {}
     secrets = {}
     for key in sorted(config._defined):
@@ -112,9 +115,9 @@ def k8s(config, **options):
             secrets[key] = stringval
         else:
             data[key] = stringval
-    metadata = {"name": options["name"]}
-    if options["namespace"]:
-        metadata["namespace"] = options["namespace"]
+    metadata = {"name": options.name}
+    if options.namespace:
+        metadata["namespace"] = options.namespace
     items = []
     if data:
         items.append(
@@ -135,7 +138,7 @@ def k8s(config, **options):
                 "stringData": secrets,
             }
         )
-    if options["yaml"]:
+    if options.yaml:
         import yaml
 
         log(yaml.dump_all(items, sort_keys=False))
@@ -150,32 +153,32 @@ def k8s(config, **options):
         log(json.dumps(objects, indent=4, default=lambda obj: ""))
 
 
-def execute(**options):
+def execute(options: argparse.Namespace):
     try:
-        config_module = importlib.import_module(options["config_module"])
-        config = config_module.config
+        config_module = importlib.import_module(options.config_module)
+        config: Config = config_module.config
     except ImportError:
-        module_name, config_name = options["config_module"].rsplit(".", 1)
+        module_name, config_name = options.config_module.rsplit(".", 1)
         config_module = importlib.import_module(module_name)
-        config = getattr(config_module, config_name)
-    action = options.get("action", "check")
+        config: Config = getattr(config_module, config_name)
+    action = getattr(options, "action", "check")
     if action == "check":
-        check(config, **options)
+        check(config, options)
     elif action == "genkey":
-        genkey(config, **options)
+        genkey(config, options)
     elif action == "encrypt":
-        encrypt(config, **options)
+        encrypt(config, options)
     elif action == "dump":
-        dump(config, **options)
+        dump(config, options)
     elif action == "k8s":
-        k8s(config, **options)
+        k8s(config, options)
 
 
 def main(*args):
     parser = argparse.ArgumentParser()
     setup_parser(parser)
     options = parser.parse_args(args=args or None)
-    execute(**vars(options))
+    execute(options)
 
 
 if __name__ == "__main__":

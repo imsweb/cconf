@@ -54,7 +54,7 @@ def check(config, **options):
     for source in sorted(source_vars):
         log(f"{source}")
         for key, value in source_vars[source]:
-            log(f"    {key}\n        {repr(value)}")
+            log(f"    {key}\n        {value!r}")
 
 
 def genkey(config, **options):
@@ -86,7 +86,7 @@ def dump(config, **options):
     if options["interactive"]:
         filename = input("Write to file [-]: ")
         if filename.strip() not in ("", "-"):
-            file = open(filename, "w")
+            file = open(filename, "w")  # noqa: SIM115
             should_close = True
     for key in sorted(config._defined):
         configval = config._defined[key]
@@ -153,7 +153,7 @@ def k8s(config, **options):
 def execute(**options):
     try:
         config_module = importlib.import_module(options["config_module"])
-        config = getattr(config_module, "config")
+        config = config_module.config
     except ImportError:
         module_name, config_name = options["config_module"].rsplit(".", 1)
         config_module = importlib.import_module(module_name)

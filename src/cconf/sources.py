@@ -18,7 +18,7 @@ def read_entries(fileobj: TextIO) -> dict[str, str]:
     leading/trailing quotes around the value portion of the assignment are stripped.
     """
     entries: dict[str, str] = {}
-    for line in fileobj.readlines():
+    for line in fileobj:
         line = line.strip()
         if "=" in line and not line.startswith("#"):
             key, value = line.split("=", 1)
@@ -108,7 +108,7 @@ class EnvFile(Source):
         self._items = None
 
     def __str__(self):
-        return "{}({})".format(self.__class__.__name__, self._env_file)
+        return f"{self.__class__.__name__}({self._env_file})"
 
     def __getitem__(self, key: str) -> str:
         if self._items is None:
@@ -137,7 +137,7 @@ class EnvDir(Source):
         self._policy = policy
 
     def __str__(self):
-        return "{}({})".format(self.__class__.__name__, self._env_dir)
+        return f"{self.__class__.__name__}({self._env_dir})"
 
     def __getitem__(self, key: str) -> str:
         entry_path = os.path.join(self._env_dir, key)

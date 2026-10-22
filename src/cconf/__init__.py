@@ -27,9 +27,6 @@ __version_info__ = tuple(
 )
 
 __all__ = [
-    "config",
-    "register_database",
-    "undefined",
     "CacheDict",
     "Cipher",
     "CommaSeparated",
@@ -43,14 +40,17 @@ __all__ = [
     "EnvDir",
     "EnvFile",
     "HostEnv",
-    "Keys",
     "KeyFile",
+    "Keys",
     "PolicyError",
     "Recipient",
     "Recipients",
+    "Secret",
     "SecretsDir",
+    "Separated",
     "UserOnly",
     "UserOrGroup",
-    "Secret",
-    "Separated",
+    "config",
+    "register_database",
+    "undefined",
 ]

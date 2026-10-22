@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, NamedTuple
 from urllib.parse import ParseResult, parse_qs, urlparse
 
 Processor = Callable[[ParseResult, dict[str, Any]], Any]
@@ -13,7 +13,7 @@ class Engine(NamedTuple):
 CACHE_SCHEMES: dict[str, Engine] = {}
 
 
-def register(backend: str, schemes: Optional[Iterable[str]] = None):
+def register(backend: str, schemes: Iterable[str] | None = None):
     if schemes is None:
         schemes = [backend.rsplit(".")[-1]]
     elif isinstance(schemes, str):
@@ -60,12 +60,12 @@ def redis_location(url: ParseResult, options: dict[str, Any]):
     path = url.path.lstrip("/")
     if path.isdigit() and "db" not in options:
         options["db"] = path
-    return "{}://{}".format(url.scheme, url.netloc)
+    return f"{url.scheme}://{url.netloc}"
 
 
 def parse(
-    url_or_config: Union[str, dict[str, Any]],
-    backend: Optional[str] = None,
+    url_or_config: str | dict[str, Any],
+    backend: str | None = None,
     **settings: Any,
 ):
     if isinstance(url_or_config, dict):

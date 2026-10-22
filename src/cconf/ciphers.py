@@ -20,7 +20,7 @@ def read_keys(fileobj: TextIO) -> MultiFernet:
     objects.
     """
     fernets: list[Fernet] = []
-    for line in fileobj.readlines():
+    for line in fileobj:
         # TODO: skip commented out lines?
         key = line.strip()
         if key:

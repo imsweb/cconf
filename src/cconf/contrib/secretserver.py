@@ -1,5 +1,4 @@
 import warnings
-from typing import Optional, Union
 
 from delinea.secrets.server import (
     AccessTokenAuthorizer,
@@ -16,14 +15,14 @@ from cconf.sources import BaseSource
 class SecretServerSource(BaseSource):
     def __init__(
         self,
-        ss: Union[SecretServer, str],
+        ss: SecretServer | str,
         *,
-        token: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        domain: Optional[str] = None,
-        prefix: Optional[list] = None,
-        field: Optional[str] = None,
+        token: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        domain: str | None = None,
+        prefix: list | None = None,
+        field: str | None = None,
         verify: bool = False,
     ):
         if isinstance(ss, SecretServer):
@@ -36,7 +35,7 @@ class SecretServerSource(BaseSource):
                         "authentication.",
                         stacklevel=2,
                     )
-                auth = AccessTokenAuthorizer(token)
+                auth = AccessTokenAuthorizer(token, ss)
             else:
                 if not username or not password:
                     raise ValueError(
@@ -68,7 +67,7 @@ class SecretServerSource(BaseSource):
         try:
             secret = self._get_secret(key)
         except SecretServerError as ex:
-            raise ConfigError("{}: {}".format(key, ex.message))
+            raise ConfigError(f"{key}: {ex.message}")
         for item in secret["items"]:
             if item["isPassword"] and not self.field:
                 # If field is not specified, return the first password value.

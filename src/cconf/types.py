@@ -4,7 +4,7 @@ import re
 import shlex
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, NamedTuple, TypeAlias, TypeVar, overload
+from typing import Any, ClassVar, NamedTuple, TypeAlias, TypeVar, overload
 from warnings import warn
 
 from . import cacheurl, dburl
@@ -12,7 +12,7 @@ from . import cacheurl, dburl
 T = TypeVar("T")
 StrPath: TypeAlias = str | os.PathLike[str]
 
-email_re = re.compile(r"[a-z0-9\._%\+\-]+@[a-z0-9\.\-]+\.[a-z]+", re.I)
+email_re = re.compile(r"[a-z0-9\._%\+\-]+@[a-z0-9\.\-]+\.[a-z]+", re.IGNORECASE)
 
 
 class Secret(str):
@@ -77,7 +77,7 @@ class Duration(timedelta):
     `duration_string` method for converting back to this format.
     """
 
-    SPECS = {
+    SPECS: ClassVar[dict[str, int]] = {
         "y": 31536000,
         "w": 604800,
         "d": 86400,
@@ -115,7 +115,7 @@ class Duration(timedelta):
                 continue
             num = int(seconds // sec)
             if num > 0:
-                duration.append("{}{}".format(num, fmt))
+                duration.append(f"{num}{fmt}")
                 seconds -= num * sec
         return "".join(duration)
 

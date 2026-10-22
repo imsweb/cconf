@@ -57,7 +57,7 @@ class Config:
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc_details: Any):
+    def __exit__(self, *exc_details: object):
         self._debug = self._previous_debug
 
     def setup(self, *sources: SourceTypes, **kwargs: Any):
